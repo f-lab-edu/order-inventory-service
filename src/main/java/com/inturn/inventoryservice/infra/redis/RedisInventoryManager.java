@@ -37,7 +37,7 @@ public class RedisInventoryManager {
 	private final OrderProducer orderProducer;
 
 	/**
-	 * 재고가 redis에 존재하는지 확인.
+	 * 재고가 redis에 존재하는지 확인. Test
 	 * @param itemKeyList
 	 * @return
 	 */

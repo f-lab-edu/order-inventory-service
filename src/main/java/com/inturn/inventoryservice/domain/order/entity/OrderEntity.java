@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-@Entity(name = "order")
+@Entity(name = "orders")
 @Getter
 @SuperBuilder
 @NoArgsConstructor

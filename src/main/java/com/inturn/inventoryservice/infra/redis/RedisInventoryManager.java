@@ -70,7 +70,7 @@ public class RedisInventoryManager {
 		List<InventoryEntity> inventoryEntityList = new ArrayList<>();
 
 		for(String missingItem : missingItemList) {
-			final RLock lock = redissonClientManager.getLockByKey(missingItem);
+			final RLock lock = redissonClientManager.getLock(missingItem);
 
 			//waitTime - lock 요청을 기다리는 시간
 			//leaseTime - lock이 풀리는 시간

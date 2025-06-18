@@ -14,7 +14,8 @@ import lombok.experimental.SuperBuilder;
 public class Inventory {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GeneratedValue(strategy = GenerationType.SEQUENCE)
+	@SequenceGenerator(name = "inventory_seq_gen", sequenceName = "inventory_seq", allocationSize = 1)
 	private Long inventoryId;
 
 	@Column(nullable = false)
@@ -25,4 +26,8 @@ public class Inventory {
 
 	@Column(nullable = false)
 	private Integer stockQty;
+
+	public void deduct(Integer deductQty) {
+		this.stockQty -= deductQty;
+	}
 }

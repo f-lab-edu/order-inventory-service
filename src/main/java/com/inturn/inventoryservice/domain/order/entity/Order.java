@@ -22,6 +22,7 @@ public class Order {
     private Long orderId;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private OrderStatus orderStatusCd;
 
     @Column(nullable = false)

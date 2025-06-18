@@ -1,5 +1,6 @@
 package com.inturn.inventoryservice.domain.order.facade;
 
+import com.inturn.inventoryservice.domain.inventory.facade.InventoryDeductFacade;
 import com.inturn.inventoryservice.domain.order.dto.request.CreateOrderItemRecord;
 import com.inturn.inventoryservice.domain.order.dto.request.CreateOrderRecord;
 import com.inturn.inventoryservice.domain.order.entity.OrderEntity;
@@ -14,22 +15,26 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class OrderCreateService {
+public class OrderCreateFacade {
 
     private final OrderCommandService orderCommandService;
 
     private final OrderDetailCommandService orderDetailCommandService;
 
+    private final InventoryDeductFacade inventoryDeductFacade;
+
     @Transactional
-    public void createOrder(CreateOrderRecord order) {
+    public void createOrderAndDeductInventory(CreateOrderRecord order) {
 
         //주문 저장
-        orderCommandService.save(OrderEntity.from(order));
+        OrderEntity orderEntity = orderCommandService.save(OrderEntity.from(order));
 
         validateExistItem(order.itemList());
 
         //주문 상세 저장
-        order.itemList().forEach(o -> orderDetailCommandService.save(OrderDetailEntity.from(o)));
+        order.itemList().forEach(o -> orderDetailCommandService.save(OrderDetailEntity.from(o, orderEntity.getOrderId())));
+
+        inventoryDeductFacade.deductInventory(order);
     }
 
     private void validateExistItem(List<CreateOrderItemRecord> itemList) {

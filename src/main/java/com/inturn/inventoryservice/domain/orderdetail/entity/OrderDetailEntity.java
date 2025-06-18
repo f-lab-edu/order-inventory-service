@@ -20,8 +20,9 @@ public class OrderDetailEntity extends OrderDetail{
     @JoinColumn(updatable = false, insertable = false, name = "orderId")
     private OrderEntity order;
 
-    public static OrderDetailEntity from(CreateOrderItemRecord record) {
+    public static OrderDetailEntity from(CreateOrderItemRecord record, Long orderId) {
         return OrderDetailEntity.builder()
+                .orderId(orderId)
                 .itemId(record.itemId())
                 .itemName(record.itemName())
                 .price(record.price())

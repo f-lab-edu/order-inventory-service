@@ -39,12 +39,12 @@ public class InventoryDeductFacade {
 
         for (CreateOrderItemRecord createOrderItemRecord : orderItemList) {
 
-            final RLock lock = redissonClientManager.getLock(KeyUtils.generateRedisInventoryKey(createOrderItemRecord.itemId()));
+            final RLock lock = redissonClientManager.getLock(KeyUtils.generateRedisLockKey(createOrderItemRecord.itemId()));
 
             //waitTime - lock 요청을 기다리는 시간
             //leaseTime - lock이 풀리는 시간
             try {
-                lock.tryLock(3, 2, TimeUnit.SECONDS);
+                lock.tryLock(10, 5, TimeUnit.SECONDS);
                 InventoryEntity inventory = inventoryQueryService.getInventoryByItemId(createOrderItemRecord.itemId());
                 //재고가 존재하지 않을 경우는 throw
                 if(ObjectUtils.isEmpty(inventory)) {

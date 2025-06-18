@@ -15,7 +15,7 @@ public class Inventory {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.SEQUENCE)
-	@SequenceGenerator(name = "order_seq_gen", sequenceName = "order_seq", allocationSize = 1)
+	@SequenceGenerator(name = "inventory_seq_gen", sequenceName = "inventory_seq", allocationSize = 1)
 	private Long inventoryId;
 
 	@Column(nullable = false)

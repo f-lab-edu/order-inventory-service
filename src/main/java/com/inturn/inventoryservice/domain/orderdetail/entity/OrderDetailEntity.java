@@ -1,11 +1,7 @@
 package com.inturn.inventoryservice.domain.orderdetail.entity;
 
 import com.inturn.inventoryservice.domain.order.dto.request.CreateOrderItemRecord;
-import com.inturn.inventoryservice.domain.order.entity.OrderEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -14,11 +10,26 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @SuperBuilder
 @NoArgsConstructor
-public class OrderDetailEntity extends OrderDetail{
+public class OrderDetailEntity {
 
-    @ManyToOne
-    @JoinColumn(updatable = false, insertable = false, name = "orderId")
-    private OrderEntity order;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long orderDetailId;
+
+    @Column(nullable = false)
+    private Long orderId;
+
+    @Column(nullable = false)
+    private String itemId;
+
+    @Column(nullable = false)
+    private String itemName;
+
+    @Column(nullable = false)
+    private Double price;
+
+    @Column(nullable = false)
+    private Integer orderQty;
 
     public static OrderDetailEntity from(CreateOrderItemRecord record, Long orderId) {
         return OrderDetailEntity.builder()

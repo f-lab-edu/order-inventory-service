@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Builder
@@ -18,5 +19,9 @@ public record CreateOrderRecord(
 
 		@NotNull
 		List<CreateOrderItemRecord> itemList
+
 ) {
+	public CreateOrderRecord {
+		itemList = List.copyOf(itemList);
+	}
 }

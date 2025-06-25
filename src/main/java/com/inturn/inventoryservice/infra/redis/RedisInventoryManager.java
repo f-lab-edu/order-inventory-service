@@ -3,16 +3,18 @@ package com.inturn.inventoryservice.infra.redis;
 import com.inturn.inventoryservice.domain.inventory.define.InventoryErrorCode;
 import com.inturn.inventoryservice.domain.inventory.entity.InventoryEntity;
 import com.inturn.inventoryservice.domain.inventory.service.InventoryQueryService;
+import com.inturn.inventoryservice.domain.order.define.error.OrderErrorCode;
 import com.inturn.inventoryservice.domain.order.dto.request.CreateOrderRecord;
+import com.inturn.inventoryservice.domain.order.facade.OrderCreateFacade;
 import com.inturn.inventoryservice.global.common.dto.response.CommonResponseDTO;
+import com.inturn.inventoryservice.global.common.exception.BaseException;
 import com.inturn.inventoryservice.global.utils.KeyUtils;
-import com.inturn.inventoryservice.infra.kafka.producer.OrderProducer;
+import com.inturn.inventoryservice.infra.kafka.producer.OrderKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -33,10 +35,12 @@ public class RedisInventoryManager {
 
 	private final RedissonClientManager redissonClientManager;
 
-	private final OrderProducer orderProducer;
+	private final OrderCreateFacade orderCreateFacade;
+
+	private final OrderKafkaProducer orderKafkaProducer;
 
 	/**
-	 * 재고가 redis에 존재하는지 확인. tt
+	 * 재고가 redis에 존재하는지 확인.
 	 * @param itemKeyList
 	 * @return
 	 */
@@ -70,7 +74,6 @@ public class RedisInventoryManager {
 		List<InventoryEntity> inventoryEntityList = new ArrayList<>();
 
 		for(String missingItem : missingItemList) {
-			//TODO - 리팩토링
 			final RLock lock = redissonClientManager.getLock(KeyUtils.generateRedisLockKey(KeyUtils.getItemIdByRedisInventoryKey(missingItem)));
 
 			//waitTime - lock 요청을 기다리는 시간
@@ -159,13 +162,18 @@ public class RedisInventoryManager {
 				.collect(Collectors.toList());
 
 		if(CollectionUtils.isEmpty(result)) {
-			orderProducer.sendOrder(req);
-			return CommonResponseDTO.ok();
+			//TODO - 해당 로직에 실패에 대한 보상 트랜잭션 처리. - 추후 추가.
+			try {
+				orderCreateFacade.createOrder(req);
+				return CommonResponseDTO.ok();
+			}
+			catch (BaseException e) {
+				log.error("create order exception {}", e.toString());
+				return CommonResponseDTO.fail("주문 생성에 실패하였습니다.");
+			}
 		}
 		else {
 			return CommonResponseDTO.fail(InventoryErrorCode.INVENTORY_OUT_OF_STOCK.getErrorMessage());
 		}
 	}
-
-
 }

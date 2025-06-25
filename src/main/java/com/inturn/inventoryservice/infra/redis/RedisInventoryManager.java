@@ -3,15 +3,18 @@ package com.inturn.inventoryservice.infra.redis;
 import com.inturn.inventoryservice.domain.inventory.define.InventoryErrorCode;
 import com.inturn.inventoryservice.domain.inventory.entity.InventoryEntity;
 import com.inturn.inventoryservice.domain.inventory.service.InventoryQueryService;
+import com.inturn.inventoryservice.domain.order.define.error.OrderErrorCode;
 import com.inturn.inventoryservice.domain.order.dto.request.CreateOrderRecord;
+import com.inturn.inventoryservice.domain.order.facade.OrderCreateFacade;
 import com.inturn.inventoryservice.global.common.dto.response.CommonResponseDTO;
-import com.inturn.inventoryservice.infra.kafka.producer.OrderProducer;
+import com.inturn.inventoryservice.global.common.exception.BaseException;
+import com.inturn.inventoryservice.global.utils.KeyUtils;
+import com.inturn.inventoryservice.infra.kafka.producer.OrderKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -26,18 +29,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RedisInventoryManager {
 
-	private final String INVENTORY_KEY = "inventory:";
-
 	private final RedisTemplate<String, Object> redisTemplate;
 
 	private final InventoryQueryService inventoryQueryService;
 
-	private final RedissonClient redissonClient;
+	private final RedissonClientManager redissonClientManager;
 
-	private final OrderProducer orderProducer;
+	private final OrderCreateFacade orderCreateFacade;
+
+	private final OrderKafkaProducer orderKafkaProducer;
 
 	/**
-	 * 재고가 redis에 존재하는지 확인. tt
+	 * 재고가 redis에 존재하는지 확인.
 	 * @param itemKeyList
 	 * @return
 	 */
@@ -71,13 +74,13 @@ public class RedisInventoryManager {
 		List<InventoryEntity> inventoryEntityList = new ArrayList<>();
 
 		for(String missingItem : missingItemList) {
-			final RLock lock = redissonClient.getLock(missingItem);
+			final RLock lock = redissonClientManager.getLock(KeyUtils.generateRedisLockKey(KeyUtils.getItemIdByRedisInventoryKey(missingItem)));
 
 			//waitTime - lock 요청을 기다리는 시간
 			//leaseTime - lock이 풀리는 시간
 			try {
 				lock.tryLock(3, 2, TimeUnit.SECONDS);
-				InventoryEntity inventory = inventoryQueryService.getInventoryByItemId(getItemIdByRedisInventoryKey(missingItem));
+				InventoryEntity inventory = inventoryQueryService.getInventoryByItemId(KeyUtils.getItemIdByRedisInventoryKey(missingItem));
 				//재고가 존재하지 않을 경우는 바로 return
 				if(ObjectUtils.isEmpty(inventory)) {
 					return InventoryErrorCode.ITEM_NOT_FOUND_EXCEPTION;
@@ -100,8 +103,8 @@ public class RedisInventoryManager {
 				return "OK"
 				""";
 
-		List<String> keys = inventoryEntityList.stream().map(o -> generateRedisInventoryKey(o.getItemId())).collect(Collectors.toList());
-		List<String> vals = inventoryEntityList.stream().map(o -> String.valueOf(o.getStockQty())).collect(Collectors.toList());
+		List<String> keys = inventoryEntityList.stream().map(o -> KeyUtils.generateRedisInventoryKey(o.getItemId())).toList();
+		List<String> vals = inventoryEntityList.stream().map(o -> String.valueOf(o.getStockQty())).toList();
 
 		RedisScript<List> redisScript = RedisScript.of(script, List.class);
 		redisTemplate.execute(redisScript, keys, vals.toArray());
@@ -111,7 +114,7 @@ public class RedisInventoryManager {
 
 	public CommonResponseDTO checkInventoryWithDeduct(CreateOrderRecord req) {
 
-		List<String> keys = req.itemList().stream().map(o -> generateRedisInventoryKey(o.itemId())).collect(Collectors.toList());
+		List<String> keys = req.itemList().stream().map(o -> KeyUtils.generateRedisInventoryKey(o.itemId())).toList();
 		List<String> missingItemList = missingRedisInventory(keys);
 
 		//redis에 재고가 존재하지 않는 제품이 있으면 set 처리
@@ -123,7 +126,7 @@ public class RedisInventoryManager {
 			 }
 		}
 
-		List<String> vals = req.itemList().stream().map(o -> String.valueOf(o.orderQty())).collect(Collectors.toList());
+		List<String> vals = req.itemList().stream().map(o -> String.valueOf(o.orderQty())).toList();
 
 		String script = """
                 local result = {}
@@ -159,23 +162,18 @@ public class RedisInventoryManager {
 				.collect(Collectors.toList());
 
 		if(CollectionUtils.isEmpty(result)) {
-			orderProducer.sendOrder(req);
-			return CommonResponseDTO.ok();
+			//TODO - 해당 로직에 실패에 대한 보상 트랜잭션 처리. - 추후 추가.
+			try {
+				orderCreateFacade.createOrder(req);
+				return CommonResponseDTO.ok();
+			}
+			catch (BaseException e) {
+				log.error("create order exception {}", e.toString());
+				return CommonResponseDTO.fail("주문 생성에 실패하였습니다.");
+			}
 		}
 		else {
 			return CommonResponseDTO.fail(InventoryErrorCode.INVENTORY_OUT_OF_STOCK.getErrorMessage());
 		}
-	}
-
-	private String generateRedisInventoryKey(String itemId) {
-		return String.format("%s%s", INVENTORY_KEY, itemId);
-	}
-
-	private List<String> getItemIdByRedisInventoryKeyList(List<String> redisInventoryKeyList) {
-		return redisInventoryKeyList.stream().map(o -> getItemIdByRedisInventoryKey(o)).collect(Collectors.toList());
-	}
-
-	private String getItemIdByRedisInventoryKey(String redisInventoryKey) {
-		return redisInventoryKey.replace(INVENTORY_KEY, "");
 	}
 }

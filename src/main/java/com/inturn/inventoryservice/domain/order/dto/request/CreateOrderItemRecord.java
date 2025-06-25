@@ -7,6 +7,10 @@ public record CreateOrderItemRecord(
 
 		String itemId,
 
+		String itemName,
+
+		Double price,
+
 		Integer orderQty
 ) {
 }

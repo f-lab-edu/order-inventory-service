@@ -23,6 +23,18 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+#      default 그룹
+      group-id: order-group
+#      offset이 존재하지 않을 경우 최초 저장된 위치부터 읽어옴.
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -37,19 +49,20 @@ spring:
   # Redis 설정
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: 127.0.0.1
+      port: 6379
+      password: "@sdc.com"
 
   # MySql 설정
   datasource:
     driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-    url: jdbc:log4jdbc:postgresql://${POSTGRESQL_URL}:5433/inventory-v0.1
+    url: jdbc:log4jdbc:postgresql://127.0.0.1:5432/inventory-v0.1
     hikari:
       minimum-idle: 5
       maximum-pool-size: 50
     type: com.zaxxer.hikari.HikariDataSource
-    username: ${POSTGRESQL_NAME}
-    password: ${POSTGRESQL_PW}
+    username: sdc
+    password: "@sdc.com"
 
 server:
   port: 8080
